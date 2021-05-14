@@ -25,7 +25,7 @@ using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("Respawn Bradley", "PinguinNordpol", "0.1.2")]
+    [Info("Respawn Bradley", "PinguinNordpol", "0.1.3")]
     [Description("Adds the possibility to respawn Bradley via command")]
     class RespawnBradley : CovalencePlugin
     {
@@ -62,7 +62,7 @@ namespace Oxide.Plugins
 
             foreach (HelicopterDebris debris in BaseNetworkable.serverEntities.OfType<HelicopterDebris>())
             {
-                string prefab_name = debris?.ShortPrefabName ?? "";
+                string prefab_name = debris?.ShortPrefabName ?? string.Empty;
                 if (prefab_name.Contains("bradley"))
                 {
                     return true;
@@ -71,7 +71,7 @@ namespace Oxide.Plugins
 
             foreach (LockedByEntCrate crate in BaseNetworkable.serverEntities.OfType<LockedByEntCrate>())
             {
-                string prefab_name = crate?.ShortPrefabName ?? "";
+                string prefab_name = crate?.ShortPrefabName ?? string.Empty;
                 if (prefab_name.Contains("bradley"))
                 {
                     return true;
