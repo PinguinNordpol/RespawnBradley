@@ -25,7 +25,7 @@ using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("Respawn Bradley", "PinguinNordpol", "0.1.1")]
+    [Info("Respawn Bradley", "PinguinNordpol", "0.1.2")]
     [Description("Adds the possibility to respawn Bradley via command")]
     class RespawnBradley : CovalencePlugin
     {
@@ -60,18 +60,18 @@ namespace Oxide.Plugins
             BradleySpawner singleton = BradleySpawner.singleton;
             if (singleton != null && (bool)singleton.spawned) return true;
 
-            foreach (var game_object in UnityEngine.Object.FindObjectsOfType<HelicopterDebris>())
+            foreach (HelicopterDebris debris in BaseNetworkable.serverEntities.OfType<HelicopterDebris>())
             {
-                string prefab_name = game_object?.ShortPrefabName ?? "";
+                string prefab_name = debris?.ShortPrefabName ?? "";
                 if (prefab_name.Contains("bradley"))
                 {
                     return true;
                 }
             }
 
-            foreach (var game_object in UnityEngine.Object.FindObjectsOfType<LockedByEntCrate>())
+            foreach (LockedByEntCrate crate in BaseNetworkable.serverEntities.OfType<LockedByEntCrate>())
             {
-                string prefab_name = game_object?.ShortPrefabName ?? "";
+                string prefab_name = crate?.ShortPrefabName ?? "";
                 if (prefab_name.Contains("bradley"))
                 {
                     return true;
@@ -206,12 +206,12 @@ namespace Oxide.Plugins
             IPlayer target_player = null;
             bool called_by_player = false;
 
-            if (player != null && !player.IsServer && !player.HasPermission("respawnbradley.use"))
+            if (!player.IsServer && !player.HasPermission("respawnbradley.use"))
             {
                 player.Reply(GetMSG("NoPermission", player.Id));
                 return;
             }
-            else if (player != null && !player.IsServer)
+            else if (!player.IsServer)
             {
                 // Player has called command directly
                 target_player = player;
@@ -235,17 +235,21 @@ namespace Oxide.Plugins
                 }
             }
 
-            // Charge player for respawn
-            if (!this.ChargePlayer(target_player, called_by_player))
-            {
-                return;
-            }
-
             // Make sure Bradley is not already alive
             if(this.IsBradleyAlive())
             {
-                this.RefundPlayer(target_player, called_by_player);
+                if (!called_by_player)
+                {
+                    // If called via shop, player has already been charged, so need to refund here
+                    this.RefundPlayer(target_player, called_by_player);
+                }
                 target_player.Reply(GetMSG("UnableToRespawnBradley", player.Id));
+                return;
+            }
+
+            // Charge player for respawn
+            if (!this.ChargePlayer(target_player, called_by_player))
+            {
                 return;
             }
 
