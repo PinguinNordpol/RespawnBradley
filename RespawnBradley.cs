@@ -19,19 +19,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UnityEngine;
+using Rust;
+using Oxide.Core;
 using Oxide.Core.Plugins;
 using Oxide.Core.Libraries;
 using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("Respawn Bradley", "PinguinNordpol", "0.1.3")]
+    [Info("Respawn Bradley", "PinguinNordpol", "0.2.0")]
     [Description("Adds the possibility to respawn Bradley via command")]
     class RespawnBradley : CovalencePlugin
     {
         #region Fields
         [PluginReference]
-        private Plugin ServerRewards;
+        private Plugin ServerRewards, LootDefender;
         #endregion
 
         #region Oxide Hooks
@@ -39,13 +42,14 @@ namespace Oxide.Plugins
         {
             // Register our permissions
             permission.RegisterPermission("respawnbradley.use", this);
+            permission.RegisterPermission("respawnbradley.nolock", this);
         }
 
         void Loaded() => lang.RegisterMessages(Messages, this);
 
         void OnServerInitialized()
         {
-            LoadVariables();
+            LoadConfig();
         }
         #endregion
 
@@ -86,7 +90,7 @@ namespace Oxide.Plugins
          *
          * Respawn Bradley
          */
-        bool DoRespawn()
+        bool DoRespawn(IPlayer player)
         {
             BradleySpawner singleton = BradleySpawner.singleton;
 
@@ -103,6 +107,21 @@ namespace Oxide.Plugins
 
             singleton.spawned = null;
             singleton.DoRespawn();
+
+            if (this.configData.Options.LockBradleyOnRespawn && !player.HasPermission("respawnbradley.nolock"))
+            {
+                if (LootDefender != null)
+                {
+                    // Telling LootDefender Bradley took max amount of damage, this should hopefully always lock it whatever Damage Lock Threshold has been configured to
+                    HitInfo hit_info = new HitInfo(player.Object as BaseEntity, singleton.spawned as BaseEntity, DamageType.Generic, singleton.spawned.MaxHealth(), new Vector3());
+                    LootDefender.Call("OnEntityTakeDamage", singleton.spawned, hit_info);
+                }
+                else
+                {
+                    Puts("Unable to lock Bradley without LootDefender plugin!");
+                }
+            }
+
             return true;
         }
 
@@ -254,7 +273,7 @@ namespace Oxide.Plugins
             }
 
             // Respawn Bradley
-            if(!this.DoRespawn())
+            if(!this.DoRespawn(target_player))
             {
                 this.RefundPlayer(target_player, called_by_player);
                 target_player.Reply(GetMSG("UnableToRespawnBradley", player.Id));
@@ -275,6 +294,7 @@ namespace Oxide.Plugins
         }        
         class Options
         {
+            public bool LockBradleyOnRespawn { get; set; }
             public bool UseServerRewards { get; set; }
             public bool ChargeOnServerCommand { get; set; }
             public bool ChargeOnPlayerCommand { get; set; }
@@ -283,20 +303,33 @@ namespace Oxide.Plugins
             public int RespawnCosts { get; set; }
             public string CurrencySymbol { get; set; }
         }
+        class PluginVersion
+        {
+            public string CurrentVersion { get; set; }
+        }
         class ConfigData
         {
             public Messaging Messaging { get; set; }
             public Options Options { get; set; }
+            public Oxide.Core.VersionNumber Version { get; set; }
 
         }
-        private void LoadVariables()
+        private void LoadConfig()
         {
-            LoadConfigVariables();
-            SaveConfig();
+            ConfigData config_data = Config.ReadObject<ConfigData>();
+
+            if (config_data.Version < Version)
+            {
+                this.configData = this.UpdateConfig(config_data);
+            }
+            else
+            {
+                this.configData = config_data;
+            }
         }
-        protected override void LoadDefaultConfig()
+        private ConfigData CreateNewConfig()
         {
-            var config = new ConfigData
+            return new ConfigData
             {
                 Messaging = new Messaging
                 {
@@ -306,6 +339,7 @@ namespace Oxide.Plugins
                 },
                 Options = new Options
                 {
+                    LockBradleyOnRespawn = false,
                     UseServerRewards = true,
                     ChargeOnServerCommand = false,
                     ChargeOnPlayerCommand = false,
@@ -313,11 +347,43 @@ namespace Oxide.Plugins
                     RefundOnPlayerCommand = false,
                     RespawnCosts = 10000,
                     CurrencySymbol = "RP"
-                }
+                },
+                Version = Version
             };
-            SaveConfig(config);
         }
-        private void LoadConfigVariables() => this.configData = Config.ReadObject<ConfigData>();
+        protected override void LoadDefaultConfig() => SaveConfig(this.CreateNewConfig());
+        private ConfigData UpdateConfig(ConfigData old_config)
+        {
+            ConfigData new_config;
+            bool config_changed = false;
+
+            if (old_config.Version < new VersionNumber(0, 2, 0))
+            {
+                new_config = this.CreateNewConfig();
+                new_config.Messaging.MsgColor = old_config.Messaging.MsgColor;
+                new_config.Messaging.HilColor = old_config.Messaging.HilColor;
+                new_config.Messaging.ErrColor = old_config.Messaging.ErrColor;
+                new_config.Options.UseServerRewards = old_config.Options.UseServerRewards;
+                new_config.Options.ChargeOnServerCommand = old_config.Options.ChargeOnServerCommand;
+                new_config.Options.ChargeOnPlayerCommand = old_config.Options.ChargeOnPlayerCommand;
+                new_config.Options.RefundOnServerCommand = old_config.Options.RefundOnServerCommand;
+                new_config.Options.RefundOnPlayerCommand = old_config.Options.RefundOnPlayerCommand;
+                new_config.Options.RespawnCosts = old_config.Options.RespawnCosts;
+                new_config.Options.CurrencySymbol = old_config.Options.CurrencySymbol;
+                config_changed = true;
+            }
+            else
+            {
+                new_config = old_config;
+                new_config.Version = Version;
+            }
+
+            this.SaveConfig(new_config);
+            if (config_changed) Puts("Configuration of RespawnBradley was updated. Please check configuration file for changes!");
+
+            return new_config;
+        }
+        //private void LoadConfigVariables() => this.configData = Config.ReadObject<ConfigData>();
         void SaveConfig(ConfigData config) => Config.WriteObject(config, true);
         #endregion
 
