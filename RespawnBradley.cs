@@ -21,6 +21,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using Rust;
+using ConVar;
 using Oxide.Core;
 using Oxide.Core.Configuration;
 using Oxide.Core.Plugins;
@@ -29,7 +30,7 @@ using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("Respawn Bradley", "PinguinNordpol", "0.3.0")]
+    [Info("Respawn Bradley", "PinguinNordpol", "0.3.1")]
     [Description("Adds the possibility to respawn Bradley via command")]
     class RespawnBradley : CovalencePlugin
     {
@@ -232,6 +233,12 @@ namespace Oxide.Plugins
             if (singleton == null)
             {
                 Puts("No Bradley spawner found!");
+                return false;
+            }
+
+            if (!Bradley.enabled)
+            {
+                Puts("Bradley has been disabled! Enable it if you want this plugin to work.");
                 return false;
             }
 
@@ -574,17 +581,17 @@ namespace Oxide.Plugins
                 new_config.Options.RefundOnPlayerCommand = old_config.Options.RefundOnPlayerCommand;
                 new_config.Options.RespawnCosts = old_config.Options.RespawnCosts;
                 new_config.Options.CurrencySymbol = old_config.Options.CurrencySymbol;
-/*
+
+                if (old_config.Version >= new VersionNumber(0, 2, 0))
+                {
+                    new_config.Options.LockBradleyOnRespawn = old_config.Options.LockBradleyOnRespawn;
+                }
+
                 if (old_config.Version >= new VersionNumber(0, 3, 0))
                 {
                     new_config.Cooldowns.EnableCooldown = old_config.Cooldowns.EnableCooldown;
                     new_config.Cooldowns.CooldownPerPlayer = old_config.Cooldowns.CooldownPerPlayer;
                     new_config.Cooldowns.CooldownSecs = old_config.Cooldowns.CooldownSecs;
-                }
-*/
-                if (old_config.Version >= new VersionNumber(0, 2, 0))
-                {
-                    new_config.Options.LockBradleyOnRespawn = old_config.Options.LockBradleyOnRespawn;
                 }
                 config_changed = true;
             }
