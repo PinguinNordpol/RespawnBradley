@@ -1,5 +1,5 @@
 /*
-RespawnBradley Copyright (c) 2021 by PinguinNordpol
+RespawnBradley Copyright (c) 2021-2022 by PinguinNordpol
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("Respawn Bradley", "PinguinNordpol", "0.3.1")]
+    [Info("Respawn Bradley", "PinguinNordpol", "0.3.2")]
     [Description("Adds the possibility to respawn Bradley via command")]
     class RespawnBradley : CovalencePlugin
     {
@@ -291,17 +291,17 @@ namespace Oxide.Plugins
             else
             {
                 // No supported rewards plugin loaded or configured
-                player.Reply(GetMSG("UnableToCharge", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
+                this.MessagePlayer(player, GetMSG("UnableToCharge", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
                 return false;
             }
 
             if (result == null || (result is bool && (bool)result == false))
             {
-                player.Reply(GetMSG("UnableToCharge", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
+                this.MessagePlayer(player, GetMSG("UnableToCharge", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
                 return false;
             }
 
-            player.Reply(GetMSG("PlayerCharged", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
+            this.MessagePlayer(player, GetMSG("PlayerCharged", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
             return true;
         }
 
@@ -329,21 +329,33 @@ namespace Oxide.Plugins
             else
             {
                 // No supported rewards plugin loaded or configured
-                player.Reply(GetMSG("UnableToRefund", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
+                this.MessagePlayer(player, GetMSG("UnableToRefund", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
                 return;
             }
 
             if (result == null || (result is bool && (bool)result == false))
             {
-                player.Reply(GetMSG("UnableToRefund", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
+                this.MessagePlayer(player, GetMSG("UnableToRefund", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
                 return;
             }
 
-            player.Reply(GetMSG("PlayerRefunded", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
+            this.MessagePlayer(player, GetMSG("PlayerRefunded", player.Id).Replace("{amount}", this.config_data.Options.RespawnCosts.ToString()).Replace("{currency}", this.config_data.Options.CurrencySymbol));
         }
         #endregion
 
         #region Helpers
+        /*
+         * MessagePlayer
+         *
+         * Sends a chat message to the given player
+         */
+        private void MessagePlayer(IPlayer player, string msg) => this.MessagePlayer(player?.Object as BasePlayer, msg);
+        private void MessagePlayer(BasePlayer player, string msg)
+        {
+            if (player == null) return;
+            player.ChatMessage(msg);
+        }
+
         /*
          * FindPlayer
          *
@@ -406,7 +418,7 @@ namespace Oxide.Plugins
 
             if (!player.IsServer && !player.HasPermission("respawnbradley.use"))
             {
-                player.Reply(GetMSG("NoPermission", player.Id));
+                this.MessagePlayer(player, GetMSG("NoPermission", player.Id));
                 return;
             }
             else if (!player.IsServer)
@@ -440,7 +452,7 @@ namespace Oxide.Plugins
                 if (this.cooldown_controller.HasCooldown(target_player.Id, out remaining_secs))
                 {
                     // Command is still on cooldown
-                    target_player.Reply(GetMSG("PlayerOnCooldown", player.Id).Replace("{time}", this.FormatSecs(target_player, remaining_secs)));
+                    this.MessagePlayer(target_player, GetMSG("PlayerOnCooldown", player.Id).Replace("{time}", this.FormatSecs(target_player, remaining_secs)));
                     return;
                 }
             }
@@ -453,7 +465,7 @@ namespace Oxide.Plugins
                     // If called via shop, player has already been charged, so need to refund here
                     this.RefundPlayer(target_player, called_by_player);
                 }
-                target_player.Reply(GetMSG("UnableToRespawnBradley", player.Id));
+                this.MessagePlayer(target_player, GetMSG("UnableToRespawnBradley", player.Id));
                 return;
             }
 
@@ -467,7 +479,7 @@ namespace Oxide.Plugins
             if(!this.DoRespawn(target_player))
             {
                 this.RefundPlayer(target_player, called_by_player);
-                target_player.Reply(GetMSG("UnableToRespawnBradley", player.Id));
+                this.MessagePlayer(target_player, GetMSG("UnableToRespawnBradley", player.Id));
                 return;
             }
 
@@ -477,7 +489,7 @@ namespace Oxide.Plugins
                 this.cooldown_controller.AddCooldown(target_player.Id);
             }
 
-            target_player.Reply(GetMSG("BradleyHasBeenRespawned", player.Id));
+            this.MessagePlayer(target_player, GetMSG("BradleyHasBeenRespawned", player.Id));
         }
         #endregion
 
